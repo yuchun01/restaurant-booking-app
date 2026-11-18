@@ -13,28 +13,25 @@
   <title>餐廳訂位管理系統</title>
 </head>
 <body>
-  <div class="app-shell">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">RESTAURANT BOOKING</p>
-        <h1>🍽️ 餐廳訂位管理系統</h1>
-        <p class="subtitle">櫃檯專用・離線也能操作</p>
-      </div>
-      <div class="connection-pill" id="connectionStatus"><span class="status-dot"></span><span>檢查中</span></div>
-    </header>
+<div class="app-shell">
+  <header class="topbar">
+    <div><p class="eyebrow">RESTAURANT BOOKING</p><h1>🍽️ 餐廳訂位管理系統</h1><p class="subtitle">櫃檯專用・離線也能操作</p></div>
+    <div class="connection-pill" id="connectionStatus"><span class="status-dot"></span><span>檢查中</span></div>
+  </header>
 
-    <section class="panel date-panel">
-      <div class="panel-heading"><div><span class="step">01</span><h2>訂位日期</h2></div><button class="button button-light" id="todayBtn" type="button">回到今天</button></div>
-      <div class="date-controls">
-        <button class="icon-button" id="prevDay" aria-label="前一天" type="button">‹</button>
-        <input id="bookingDate" type="date" aria-label="選擇訂位日期">
-        <button class="icon-button" id="nextDay" aria-label="後一天" type="button">›</button>
-      </div>
-      <div class="summary-row" id="dailySummary"></div>
-    </section>
+  <section class="panel date-panel">
+    <div class="panel-heading"><div><span class="step">01</span><h2>訂位日期</h2></div></div>
+    <div class="date-only"><input id="bookingDate" type="date" aria-label="選擇訂位日期"></div>
+  </section>
 
-    <section class="panel schedule-panel">
-      <div class="panel-heading"><div><span class="step">02</span><h2>桌位時間表</h2></div><span class="small-note">每格 30 分鐘</span></div>
+  <section class="panel schedule-panel">
+    <div class="panel-heading"><div><span class="step">02</span><h2 id="viewHeading">桌位訂位表</h2></div><span class="small-note">每格 30 分鐘</span></div>
+    <div class="view-switch" role="tablist" aria-label="訂位檢視模式">
+      <button class="view-tab active" id="scheduleTab" type="button" role="tab" aria-selected="true">▦ 桌位訂位表</button>
+      <button class="view-tab" id="confirmTab" type="button" role="tab" aria-selected="false">☷ 確認訂位表</button>
+    </div>
+
+    <div id="scheduleView">
       <div class="legend">
         <span><i class="legend-dot available"></i>可預約</span>
         <span><i class="legend-dot occupied"></i>已預約</span>
@@ -48,45 +45,47 @@
       <p class="helper">先選擇用餐時段及用餐時間，再點選桌位。可選擇同一時間的多張桌子併桌。</p>
       <div id="scheduleRoot" class="schedule-root"></div>
       <div class="selection-summary" id="selectionInfo">尚未選擇時間及桌位</div>
-    </section>
+    </div>
 
-    <section class="panel form-panel">
-      <div class="panel-heading"><div><span class="step">03</span><h2>新增訂位資料</h2></div></div>
-      <form id="bookingForm">
-        <div class="form-grid">
-          <label class="field"><span>顧客姓名 *</span><input id="customerName" autocomplete="off" required placeholder="請輸入姓名"></label>
-          <label class="field"><span>聯絡電話 *</span><input id="phone" type="tel" inputmode="tel" autocomplete="off" required placeholder="請輸入電話"></label>
-          <label class="field"><span>用餐人數 *</span><input id="guests" type="number" min="1" max="52" required placeholder="人數"></label>
-          <label class="field field-wide"><span>備註</span><textarea id="notes" rows="2" placeholder="兒童椅、特殊需求等"></textarea></label>
-        </div>
-        <p class="helper">6 人以上必須選擇兩張以上桌子；只有 1～9 號桌可以併桌。午餐最晚結束時間 14:30，晚餐最晚結束時間 20:30。</p>
-        <button class="button button-primary button-large full-width" type="submit">＋ 確認新增訂位</button>
-      </form>
-    </section>
-
-    <section class="panel records-panel">
-      <div class="panel-heading"><div><span class="step">04</span><h2>當日訂位紀錄</h2></div><span class="record-count" id="recordCount">0 筆</span></div>
+    <div id="confirmView" hidden>
       <div class="record-tools">
         <label class="search-field"><span>⌕</span><input id="searchInput" type="search" placeholder="搜尋姓名或電話"></label>
         <select id="recordMealFilter" aria-label="訂位餐期篩選"><option value="全天">全部餐期</option><option value="午餐">午餐</option><option value="晚餐">晚餐</option></select>
+        <select id="recordStatusFilter" aria-label="訂位狀態篩選"><option value="active">未取消訂位</option><option value="all">全部狀態</option><option value="confirmed">已預約</option><option value="checked_in">已報到</option><option value="cancelled">已取消</option></select>
       </div>
+      <div class="record-summary" id="recordCount">0 筆訂位</div>
       <div id="recordsRoot" class="records-root"></div>
-    </section>
+    </div>
+  </section>
 
-    <section class="panel data-panel">
-      <div class="panel-heading"><div><span class="step">05</span><h2>資料備份</h2></div></div>
-      <p class="helper">訂位資料只儲存在這台 iPad。建議每天打烊後匯出備份，並將備份檔另存到安全的位置。</p>
-      <div class="backup-actions">
-        <button class="button button-light" id="exportBtn" type="button">匯出 JSON 備份</button>
-        <button class="button button-light" id="exportCsvBtn" type="button">匯出 CSV</button>
-        <label class="button button-light file-button">匯入備份<input id="importFile" type="file" accept=".json,application/json"></label>
+  <section class="panel form-panel">
+    <div class="panel-heading"><div><span class="step">03</span><h2>新增訂位資料</h2></div></div>
+    <form id="bookingForm">
+      <div class="form-grid">
+        <label class="field"><span>顧客稱謂 *</span><select id="honorific" required><option value="">請選擇稱謂</option><option value="先生">先生</option><option value="小姐">小姐</option><option value="不指定">不指定</option></select></label>
+        <label class="field"><span>顧客姓名 *</span><input id="customerName" autocomplete="off" required placeholder="請輸入姓名"></label>
+        <label class="field"><span>聯絡電話 *</span><input id="phone" type="tel" inputmode="tel" autocomplete="off" required placeholder="請輸入電話"></label>
+        <label class="field"><span>用餐人數 *</span><input id="guests" type="number" min="1" max="52" required placeholder="人數"></label>
+        <label class="field field-wide"><span>備註</span><textarea id="notes" rows="2" placeholder="兒童椅、特殊需求等"></textarea></label>
       </div>
-      <p class="storage-note" id="storageNote">資料儲存狀態：初始化中</p>
-    </section>
-    <footer>此系統為單台 iPad 本機版本，不會自動同步到其他裝置。</footer>
-  </div>
+      <p class="helper">6 人以上必須選擇兩張以上桌子；只有 1～9 號桌可以併桌。午餐最晚結束時間 14:30，晚餐最晚結束時間 20:30。</p>
+      <button class="button button-primary button-large full-width" type="submit">＋ 確認新增訂位</button>
+    </form>
+  </section>
 
-  <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="app.js"></script>
+  <section class="panel data-panel">
+    <div class="panel-heading"><div><span class="step">04</span><h2>資料備份</h2></div></div>
+    <p class="helper">訂位資料只儲存在這台 iPad。建議每天打烊後匯出備份，並將備份檔另存到安全的位置。</p>
+    <div class="backup-actions">
+      <button class="button button-light" id="exportBtn" type="button">匯出 JSON 備份</button>
+      <button class="button button-light" id="exportCsvBtn" type="button">匯出 CSV</button>
+      <label class="button button-light file-button">匯入備份<input id="importFile" type="file" accept=".json,application/json"></label>
+    </div>
+    <p class="storage-note" id="storageNote">資料儲存狀態：初始化中</p>
+  </section>
+  <footer>此系統為單台 iPad 本機版本，不會自動同步到其他裝置。</footer>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="app.js"></script>
 </body>
 </html>
