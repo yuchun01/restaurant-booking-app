@@ -85,6 +85,16 @@
   </section>
   <footer>此系統為單台 iPad 本機版本，不會自動同步到其他裝置。</footer>
 </div>
+<dialog class="notes-dialog" id="notesEditor" aria-labelledby="notesEditorTitle">
+  <div class="notes-dialog-content">
+    <h2 id="notesEditorTitle">訂位備註</h2>
+    <label class="field"><span>備註內容</span><textarea id="notesEditorInput" rows="5" placeholder="例如：兒童椅、慶生、過敏需求等"></textarea></label>
+    <div class="notes-dialog-actions">
+      <button class="button button-light" id="cancelNotesBtn" type="button">取消</button>
+      <button class="button button-primary" id="saveNotesBtn" type="button">儲存備註</button>
+    </div>
+  </div>
+</dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="app.js"></script>
 </body>

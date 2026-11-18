@@ -8,15 +8,16 @@ const TABLES = [
   { id: 11, capacity: 4, canMerge: false }, { id: 12, capacity: 4, canMerge: false },
   { id: 13, capacity: 4, canMerge: false }
 ];
-const MEALS = {'午餐':{start:'11:00',end:'14:30'},'晚餐':{start:'17:00',end:'20:30'}};
+const MEALS = {'午餐':{start:'11:30',end:'14:30'},'晚餐':{start:'17:00',end:'20:30'}};
 const DEFAULT_DURATION=90, MIN_DURATION=30, MAX_DURATION=240;
 const DB_NAME='restaurant-booking-local', DB_VERSION=1, STORE='bookings';
-let db, selected=new Map(), toastTimer, currentView='schedule';
+let db, selected=new Map(), toastTimer, currentView='schedule', editingNotesId=null;
 const $=id=>document.getElementById(id);
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function toMinutes(t){const [h,m]=t.split(':').map(Number);return h*60+m;}
 function toTime(n){return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;}
 function escapeHTML(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function displayCustomerName(b){const name=b.customerName||'';const title=b.honorific&&b.honorific!=='不指定'?b.honorific:'';return `${name}${title}`;}
 function showToast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),2600);}
 function openDatabase(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains(STORE)){const s=d.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});s.createIndex('date','date',{unique:false});s.createIndex('status','status',{unique:false});}};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);});}
 function store(mode='readonly'){return db.transaction(STORE,mode).objectStore(STORE);}
@@ -47,7 +48,7 @@ function renderSchedule(all){
     const end=toMinutes(time)+getDuration(),beyond=end>toMinutes(MEALS[meal].end);
     const occupied=bookings.find(b=>b.tableIds.includes(table.id)&&overlap(time,toTime(end),b.startTime,b.endTime));
     const key=`${meal}|${time}|${table.id}`;
-    if(occupied)return `<td class="slot-cell"><button class="slot-button" type="button" disabled><span>${escapeHTML((occupied.honorific&&occupied.honorific!=='不指定'?occupied.honorific:'')+occupied.customerName)}</span><span class="sub">${occupied.startTime}–${occupied.endTime}</span></button></td>`;
+    if(occupied)return `<td class="slot-cell"><button class="slot-button" type="button" disabled><span>${escapeHTML(displayCustomerName(occupied))}</span><span class="sub">${occupied.startTime}–${occupied.endTime}</span></button></td>`;
     const chosen=selected.has(key);
     return `<td class="slot-cell"><button class="slot-button ${beyond?'blocked':''} ${chosen?'selected':''}" type="button" data-meal="${meal}" data-time="${time}" data-table="${table.id}" ${beyond?'disabled':''}>${beyond?'超過營業時間':chosen?'已選取':'可預約'}</button></td>`;
    }).join('');
@@ -69,11 +70,23 @@ function renderRecords(all){
  $('recordCount').textContent=`共 ${rows.length} 筆訂位`;
  if(!rows.length){$('recordsRoot').innerHTML='<div class="empty-state">目前沒有符合條件的訂位紀錄</div>';return;}
  $('recordsRoot').innerHTML=rows.map(b=>{
-  const cancelled=b.status==='cancelled',checked=b.status==='checked_in',name=(b.honorific&&b.honorific!=='不指定'?b.honorific:'')+(b.customerName||'');
-  return `<article class="record-card"><div class="record-main"><div class="record-time">${b.meal}・${b.startTime}–${b.endTime}</div><div class="record-name">${escapeHTML(name)} <span class="status-tag ${cancelled?'cancelled':checked?'checked':''}">${statusText(b.status)}</span></div><div class="record-meta">電話：${escapeHTML(b.phone)}<br>人數：${b.guests} 人　｜　桌號：${(b.tableIds||[]).join('、')} 號桌<br>備註：${escapeHTML(b.notes||'無')}<br>編號：#${b.id}</div></div><div class="record-actions">${!cancelled&&!checked?`<button class="button button-checkin" data-checkin="${b.id}" type="button">✓ 已報到</button>`:''}${!cancelled?`<button class="button button-danger" data-cancel="${b.id}" type="button">取消訂位</button>`:''}</div></article>`;
+  const cancelled=b.status==='cancelled',checked=b.status==='checked_in',name=displayCustomerName(b);
+  return `<article class="record-card"><div class="record-main"><div class="record-time">${b.meal}・${b.startTime}–${b.endTime}</div><div class="record-name">${escapeHTML(name)} <span class="status-tag ${cancelled?'cancelled':checked?'checked':''}">${statusText(b.status)}</span></div><div class="record-meta">電話：${escapeHTML(b.phone)}<br>人數：${b.guests} 人　｜　桌號：${(b.tableIds||[]).join('、')} 號桌<br>備註：${escapeHTML(b.notes||'無')}<br>編號：#${b.id}</div></div><div class="record-actions"><button class="button button-light" data-edit-notes="${b.id}" type="button">${b.notes&&b.notes.trim()?'修改備註':'新增備註'}</button>${!cancelled&&!checked?`<button class="button button-checkin" data-checkin="${b.id}" type="button">✓ 已報到</button>`:''}${!cancelled?`<button class="button button-danger" data-cancel="${b.id}" type="button">取消訂位</button>`:''}</div></article>`;
  }).join('');
+ $('recordsRoot').querySelectorAll('[data-edit-notes]').forEach(b=>b.addEventListener('click',()=>openNotesEditor(Number(b.dataset.editNotes))));
  $('recordsRoot').querySelectorAll('[data-cancel]').forEach(b=>b.addEventListener('click',()=>changeStatus(Number(b.dataset.cancel),'cancelled')));
  $('recordsRoot').querySelectorAll('[data-checkin]').forEach(b=>b.addEventListener('click',()=>changeStatus(Number(b.dataset.checkin),'checked_in')));
+}
+async function openNotesEditor(id){
+ const all=await getAllBookings(),b=all.find(x=>x.id===id);if(!b)return showToast('找不到這筆訂位');
+ editingNotesId=id;$('notesEditorTitle').textContent=`${displayCustomerName(b)}｜訂位備註`;$('notesEditorInput').value=b.notes||'';
+ $('notesEditor').showModal();$('notesEditorInput').focus();
+}
+async function saveEditedNotes(){
+ if(editingNotesId===null)return;
+ const all=await getAllBookings(),b=all.find(x=>x.id===editingNotesId);if(!b)return showToast('找不到這筆訂位');
+ b.notes=$('notesEditorInput').value.trim();b.updatedAt=new Date().toISOString();
+ await updateBooking(b);$('notesEditor').close();editingNotesId=null;await render();showToast('訂位備註已更新');
 }
 async function changeStatus(id,status){
  const all=await getAllBookings(),b=all.find(x=>x.id===id);if(!b)return showToast('找不到這筆訂位');
@@ -108,6 +121,9 @@ function init(){
  $('bookingDate').value=todayISO();$('diningMinutes').value=DEFAULT_DURATION;
  openDatabase().then(async d=>{db=d;if(navigator.storage?.persist)await navigator.storage.persist();await render();}).catch(err=>{$('storageNote').textContent=`資料庫初始化失敗：${err.message}`;showToast('無法啟動本機資料庫，請使用 Safari 開啟 HTTPS 網址');});
  $('bookingForm').addEventListener('submit',addBooking);
+ $('saveNotesBtn').addEventListener('click',saveEditedNotes);
+ $('cancelNotesBtn').addEventListener('click',()=>{$('notesEditor').close();editingNotesId=null;});
+ $('notesEditor').addEventListener('close',()=>{editingNotesId=null;});
  $('bookingDate').addEventListener('change',()=>{clearSelection();render();});
  $('mealPicker').addEventListener('change',()=>{clearSelection();render();});
  $('diningMinutes').addEventListener('change',()=>{clearSelection();render();});
